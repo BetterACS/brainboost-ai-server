@@ -1,0 +1,7 @@
+archived/*
+notebook/*
+source/*
+.env
+*.pem
+
+__pycache__/*
