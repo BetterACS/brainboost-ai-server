@@ -1,0 +1,3 @@
+MAX_IMAGE_DESCRIBE = 15
+
+OPENAI_MODEL_NAME = "gpt-4o-mini"

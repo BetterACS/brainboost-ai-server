@@ -1,0 +1,10 @@
+docling
+fastapi
+uvicorn
+pypdf
+PyMuPDF
+pillow
+google-generativeai
+python-dotenv
+python-multipart
+openai
