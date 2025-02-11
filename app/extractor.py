@@ -10,17 +10,19 @@ from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions, TableFormerMode
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from dotenv import load_dotenv
+import urllib.request
+import random
 
 load_dotenv()
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 def download_file(url: str):
-    local_filename = url.split('/')[-1]
-    # NOTE the stream=True parameter below
-    with requests.get(url, stream=True) as r:
-        with open(local_filename, 'wb') as f:
-            shutil.copyfileobj(r.raw, f)
-
+    file = urllib.request.urlopen(url)
+    
+    local_filename = str(random.getrandbits(128)) + ".pdf"
+    with open(f'{local_filename}.pdf','wb') as output:
+        output.write(file.read())
+    
     return local_filename
 
 def get_extractor():
