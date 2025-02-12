@@ -11,3 +11,6 @@ class CreatGameRequest(BaseModel):
     num_games: int
     language: str
     personalize: str
+
+class SummarizeRequest(BaseModel):
+    context: str

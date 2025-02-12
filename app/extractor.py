@@ -92,7 +92,7 @@ def extract_text_from_pdf(pdf_path, extractor):
 
     index = 0
     for prov in tqdm(result_dict["pictures"]):
-        if index > constraints.MAX_IMAGE_DESCRIBE:
+        if index >= constraints.MAX_IMAGE_DESCRIBE:
             img_desc.append("")
             continue
 

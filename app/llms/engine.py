@@ -1,6 +1,6 @@
 from openai import OpenAI
 import app.constraints as constraints
-from app.models.response import QuizGameResponse, CreatGameRequest
+from app.models.response import QuizGameResponse, CreatGameRequest, SummarizeRequest
 from app.models.games import QuizGameJson
 from dotenv import load_dotenv
 
@@ -36,6 +36,16 @@ GAME_SETTINGS_DICT = {
         "instructions": "- Create a {num} question (hard question).\n- Use the context above to generate the questions.\n- Use {lang} language for the questions.\n"
     }
 }
+
+SUMMARIZE_PROMPT = \
+"""
+Use the following context to summarize.
+
+context:
+```
+{context}
+```
+"""
 
 
 def get_response_type(game_type: str):
@@ -99,3 +109,18 @@ def create_game(request: CreatGameRequest):
     #     return {"status": 500, "message": "Error while Generate games", "data": []}
 
     # return {"status": 200, "message": "Create Game complete!", "data": game_json}
+
+def create_summarize(request: SummarizeRequest):
+    prompt = SUMMARIZE_PROMPT.format(context=request.context)
+
+    client = OpenAI()
+    completion = client.chat.completions.create(
+        model=constraints.OPENAI_MODEL_NAME,
+        messages=[
+            {"role": "system", "content": "Extract information with languge of its context for student."},
+            {"role": "user", "content": prompt}
+        ],
+    )
+    
+    summarized_content = completion.choices[0].message.content
+    return summarized_content
