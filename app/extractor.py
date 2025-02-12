@@ -25,7 +25,7 @@ def download_file(url: str):
     
     return local_filename
 
-def get_extractor():
+def get_extractor() -> DocumentConverter:
     pipeline_options = PdfPipelineOptions(do_table_structure=True)
     pipeline_options.table_structure_options.mode = (
         TableFormerMode.ACCURATE
@@ -81,7 +81,7 @@ def describe_image(img):
     )
     return "<!image - " + response.text + ">"
 
-def extract_text_from_pdf(pdf_path, extractor):
+def extract_text_from_pdf(pdf_path, extractor, extract_img=True):
     if "http:" in pdf_path or "https:" in pdf_path:
         pdf_path = download_file(pdf_path)
     
