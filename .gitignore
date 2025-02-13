@@ -1,6 +1,7 @@
 archived/*
 notebook/*
 source/*
+download/*
 .env
 *.pem
 

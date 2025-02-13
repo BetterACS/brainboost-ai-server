@@ -19,8 +19,8 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 def download_file(url: str):
     file = urllib.request.urlopen(url)
     
-    local_filename = str(random.getrandbits(128)) + ".pdf"
-    with open(f'{local_filename}.pdf','wb') as output:
+    local_filename = "./download/" + str(random.getrandbits(128)) + ".pdf"
+    with open(local_filename,'wb') as output:
         output.write(file.read())
     
     return local_filename

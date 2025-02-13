@@ -33,7 +33,7 @@ Instructions:
 GAME_SETTINGS_DICT = {
     "quiz": {
         "format": "Q: {question}\nC1: {choice1}\nC2: {choice2}\nC3: {choice3}\nC4: {choice4}\nCA: {correct_answer_index}",
-        "instructions": "- Create a {num} question (hard question).\n- Use the context above to generate the questions.\n- Use {lang} language for the questions.\n"
+        "instructions": "- Create a {num} (if valid context) question (hard question).\n- Use the context above to generate the questions.\n- Use {lang} language.\n- Please ignore class information like schedule, lecturer, etc. \n- Leave it empty '[]' if the context is not valid.",
     }
 }
 
