@@ -27,26 +27,37 @@ You need to follow this game format:
 ```
 
 Instructions:
+- Please ignore class information like schedule, lecturer, etc.
+- The 'question' should be not mentioned the context.
+- The 'question' should use single language do not mix with other languages (Technical terms are allowed).
+- Use {lang} language.
 {instructions}
+
+# Note: Leave it empty '[]' if the context is not valid.
 """
 
 GAME_SETTINGS_DICT = {
     "quiz": {
         "format": "Q: {question}\nC1: {choice1}\nC2: {choice2}\nC3: {choice3}\nC4: {choice4}\nCA: {correct_answer_index}",
-        "instructions": "- Create a {num} (if valid context) question (hard question).\n- Use the context above to generate the questions.\n- Use {lang} language.\n- Please ignore class information like schedule, lecturer, etc. \n- Leave it empty '[]' if the context is not valid.",
+        "instructions": "- Create a {num} (if valid context) question (hard question).\n- Use the context above to generate the questions.",
     }
 }
 
-SUMMARIZE_PROMPT = \
+PERSONALIZE_PROMPT = \
 """
-Use the following context to summarize.
+Personalize the following context.
 
 context:
 ```
 {context}
 ```
-"""
 
+Personalize:
+{personalize_instructions}
+
+Instructions:
+- Do not change the json format just paraphrase the question or answer.
+"""
 
 def get_response_type(game_type: str):
     if game_type == 'quiz':
@@ -85,10 +96,10 @@ def construction_json(game_type: str, context: str):
 # @app.post("/create_game")
 def create_game(request: CreatGameRequest):
     game_settings = GAME_SETTINGS_DICT[request.game_type]
-    instructions = game_settings["instructions"].format(num=request.num_games, lang=request.language) + request.personalize
+    instructions = game_settings["instructions"].format(num=request.num_games)
     
     prompt = CREATE_GAME_PROMPT.format(
-        context=request.context, instructions=instructions, format=game_settings['format'], game_type=request.game_type, 
+        context=request.context, instructions=instructions, format=game_settings['format'], game_type=request.game_type, lang=request.language
     )
 
     client = OpenAI()
@@ -98,29 +109,19 @@ def create_game(request: CreatGameRequest):
     )
     
     game_str = completion.choices[0].message.content
-    game_json = construction_json(game_type=request.game_type, context=game_str)
+    refined_game_str = refine_game(context=game_str, personalize_instructions=request.personalize)
+
+    game_json = construction_json(game_type=request.game_type, context=refined_game_str)
     return game_json
 
-    # try:
-    #     # prompt = question_prompt.format(game_type=request.game_type, context=request.context, **game_settings[request.game_type])
-
-    # except Exception as e:
-    #     print(e)
-    #     return {"status": 500, "message": "Error while Generate games", "data": []}
-
-    # return {"status": 200, "message": "Create Game complete!", "data": game_json}
-
-def create_summarize(request: SummarizeRequest):
-    prompt = SUMMARIZE_PROMPT.format(context=request.context)
+def refine_game(context: str, personalize_instructions: str):
+    prompt = PERSONALIZE_PROMPT.format(context=context, personalize_instructions=personalize_instructions )
 
     client = OpenAI()
     completion = client.chat.completions.create(
         model=constraints.OPENAI_MODEL_NAME,
-        messages=[
-            {"role": "system", "content": "Extract information with languge of its context for student."},
-            {"role": "user", "content": prompt}
-        ],
+        messages=[{"role": "user", "content": prompt}],
     )
     
-    summarized_content = completion.choices[0].message.content
-    return summarized_content
+    game_str = completion.choices[0].message.content
+    return game_str
