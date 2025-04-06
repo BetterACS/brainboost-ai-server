@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from functools import lru_cache
 from .extractor import get_extractor, extract_text_from_pdf
 from .llms.engine import create_game, explain
+from .utils.chunking import sliding_window_chunking, get_chunk_distribution
 from .models.response import CreatGameRequest
 
 app = FastAPI()
@@ -29,17 +30,6 @@ app.add_middleware(
 )
 
 client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-
-def sliding_window_chunking(text, chunk_size, overlap_size):
-    chunks = []
-    start = 0
-
-    while start < len(text):
-        end = start + chunk_size
-        chunks.append(''.join(text[start:end]))
-        start += chunk_size - overlap_size
-
-    return chunks
 
 @lru_cache(maxsize=1)
 def extractor():
@@ -60,16 +50,29 @@ def extract_pdf_files(pdf_path: str):
 
 @app.post("/create_game")
 def create_game_post(request: CreatGameRequest):
-    overlap_size = 200
-    max_questions = 20
-    min_questions = 12
+    request_type = request.request_type
 
-    min_chunks = 5
-    chunks_size = 4200
-
+    if request_type == 'full':
+        min_chunks = 5
+        chunks_size = 4200
+        overlap_size = 200
+        max_questions = 20
+        min_questions = 12
+        
+    elif request_type == 'partial':
+        min_chunks = 2
+        chunks_size = 3000
+        overlap_size = 200
+        max_questions = 8
+        min_questions = 5
+    
+    else:
+        raise {"status": 500, "data": "Invalid request type."}
+    
+    
     try:
         context = request.context
-        request.game_type = "(quiz|yesno|bingo)"
+        game_types = "'quiz', 'yesno', 'bingo'"
 
         yesno_quota = 5
 
@@ -78,56 +81,27 @@ def create_game_post(request: CreatGameRequest):
 
         # 20 games 10 chunks (avg 2 questions per chunk)
         # chunks = sliding_window_chunking(context, chunk_size=chunks_size, overlap_size=100)
-        chunks = []
-        while len(chunks) < min_chunks:
-            if chunks_size < 500:
-                return {"status": 500, "data": "Context is too small."}
-
-            chunks = sliding_window_chunking(context, chunk_size=chunks_size, overlap_size=overlap_size)
-            chunks_size -= int(chunks_size // 2.5)
-            overlap_size -= 30
-
-        # Max 10 chunks
-        if len(chunks) > 10:
-            chunks = random.sample(chunks, 10)
-
-        min_q = 1
-        max_q = 3
-
-        question_distribution = [random.randint(min_q, max_q) for _ in range(len(chunks))]
-
-        # Adjust if total exceeds max_questions
-        while sum(question_distribution) > max_questions:
-            for i in range(len(question_distribution)):
-                if question_distribution[i] > min_q and sum(question_distribution) > max_questions:
-                    question_distribution[i] -= 1
-
-        # Adjust if total is less than min_questions
-        while sum(question_distribution) < min_questions:
-            for i in range(len(question_distribution)):
-                if question_distribution[i] < max_q and sum(question_distribution) < min_questions:
-                    question_distribution[i] += 1
+        chunks, question_distribution = get_chunk_distribution(min_chunks, max_questions, min_questions, context, overlap_size, chunks_size)
+        print(f"Chunks: {len(chunks)}")
 
         game_json = []
         for chunk, num_games in tqdm(zip(chunks, question_distribution), desc="Creating games..", total=len(chunks)):
-            # print("Chunk size: ", len(chunk))
             if len(chunk) < 100:
                 # Skip small chunk.
                 continue
 
             _request = request
             _request.context = chunk
-            _request.num_games = num_games
-            print(_request)
-            game = create_game(_request)
+            # _request.num_games = num_games
+            game = create_game(game_types=game_types, num_games=num_games, context=chunk, personalize_instructions=request.personalize, language=request.language)
             
             if game[0]['game_type'] == "bingo":
-                request.game_type = request.game_type.replace("bingo", "")
+                game_types = game_types.replace("'bingo'", "")
 
             if game[0]['game_type'] == "yesno":
                 yesno_quota -= 1
                 if yesno_quota <= 0:
-                    request.game_type = request.game_type.replace("yesno", "")
+                    game_types = game_types.replace("'yesno'", "")
 
             game_json.extend(game)
 
@@ -150,10 +124,11 @@ def get_similarity(context1: str, context2: str):
     try:
         result = client.models.embed_content(model="gemini-embedding-exp-03-07", contents=[context1, context2])
 
-        text_tensor_1 = torch.tensor(result.embeddings[0].values).unsqueeze(0)
+        text_tensor_1 = torch.tensor(result.embeddings[0].valอues).unsqueeze(0)
         text_tensor_2 = torch.tensor(result.embeddings[1].values).unsqueeze(0)
 
         similarity = torch.nn.functional.cosine_similarity(text_tensor_1, text_tensor_2)
         return {"status": 200, "data": similarity.item()}
     except Exception as e:
         return {"status": 500, "data": f"Error occurs {e}"}
+

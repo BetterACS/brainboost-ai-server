@@ -143,12 +143,13 @@ def construction_json(game_type: str, context: str):
     return results
 
 # @app.post("/create_game")
-def create_game(request: CreatGameRequest):
+# def create_game(request: CreatGameRequest):
+def create_game(game_types: str, num_games: int, context: str, personalize_instructions: str, language: str):
     client = OpenAI()
     completion = client.beta.chat.completions.parse(
         model=constraints.OPENAI_MODEL_NAME,
         messages=[
-            {"role": "user", "content": GAME_SELECTION.format(context=request.context, types=request.game_type) + "\n" + "{type: ...}"},
+            {"role": "user", "content": GAME_SELECTION.format(context=context, types=game_types) + "\n" + "{type: ...}"},
         ],
         response_format=GameSelectionResponse,
     )
@@ -158,10 +159,10 @@ def create_game(request: CreatGameRequest):
     print(f"Making Game: {game_type}")
 
     game_settings = GAME_SETTINGS_DICT[game_type]
-    instructions = game_settings["instructions"].format(num=request.num_games)
+    instructions = game_settings["instructions"].format(num=num_games)
 
     prompt = CREATE_GAME_PROMPT.format(
-        context=request.context, instructions=instructions, format=game_settings['format'], game_type=game_type, lang=request.language
+        context=context, instructions=instructions, format=game_settings['format'], game_type=game_type, lang=language
     )
 
     completion = client.chat.completions.create(
@@ -170,7 +171,7 @@ def create_game(request: CreatGameRequest):
     )
 
     game_str = completion.choices[0].message.content
-    refined_game_str = refine_game(context=game_str, personalize_instructions=request.personalize)
+    refined_game_str = refine_game(context=game_str, personalize_instructions=personalize_instructions)
     print(refined_game_str)
     game_json = construction_json(game_type=game_type, context=refined_game_str)
     return game_json

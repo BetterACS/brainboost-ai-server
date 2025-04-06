@@ -12,9 +12,10 @@ class BingoGameResponse(BaseModel):
     games: List[BingoGameJson]
 
 class CreatGameRequest(BaseModel):
-    game_type: str
+    request_type: str
+    # game_types: List[str]
+    # num_games: int
     context: str
-    num_games: int
     language: str
     personalize: str
 
